@@ -10,7 +10,7 @@ var pRoot = app.project,
 			type: /:\s*(\w+)(.*)/,
 			elementType: /(composition|comp|folder|footage|text|solid|light|camera|nullLayer|shape|adjustment|video|audio)/,
 			fileType: /(psd|ai|mov|png|jpg|exr|c4d|mp3|wav|tga|mpeg|mpg|mp4|eps|obj|pdf|avi|bmp|tif|raw|dpx|img|flv|ma|m2t|sxr|mxr|3gp|hdr|rla|rpf|wmv|wma)/,
-			attr: /(?:\{\s*(\^)?\s*([\w]+\s*(?:=\s*\w+))?\s*\})/
+			attr: /\{\s*(\^*)\s*(\w+)\s*=*\s*(\w*)\s*\}/
 		};
 
 Seasy.fn = Seasy.prototype = {
@@ -120,12 +120,19 @@ Seasy.fn = Seasy.prototype = {
 							
 									return false;
 								},
-				'attr': function(attr) {
-									return true;
+				'attr': function(obj, sel) {
+									var value;
+									if(sel[2] !== '') {
+										value = obj[sel[1]] == sel[2];
+									} else {
+										value = obj[sel[1]] == true;
+									}
+									return (sel[0] == '^') ? !value : value;
 								}
 		};
   	
   	if (match = selector.trim().match(regExpr['id'])) {
+  		// console.log('id');
   		if (match[2]==='') {
   			method = 'id';
   			sel[0] = match[1].slice(1);
@@ -135,6 +142,7 @@ Seasy.fn = Seasy.prototype = {
   	}
 
   	if (match = selector.trim().match(regExpr['name'])) {
+  		// console.log(selector);
   		if (match[4]==='') {
   			method = 'name';
   			sel[0] = match[3];
@@ -149,8 +157,18 @@ Seasy.fn = Seasy.prototype = {
   		if (match[2]==='') {
   			method = 'type';
   			sel[0] = match[1];
-  		} else {  			
-  			return this.filter(match[1]).filter(match[2]);
+  		} else { 
+  			return this.filter(':' + match[1]).filter(match[2]);
+  		}
+  	}
+
+  	if (match = selector.trim().match(regExpr['attr'])) {
+  		// console.log('attr');
+  		if (match[2] !== '') {
+  			method = 'attr';
+  			sel[0] = match[1];
+  			sel[1] = match[2]
+  			sel[2] = match[3]
   		}
   	}
 
@@ -300,10 +318,8 @@ var sInit = Seasy.prototype.sInit = function(selector, context) {
 
 		if ( match = selector.match( qRExpr ) ) {
 		 if ( match[1] ) {
-		 			alert('id');
 					return Seasy( parseFloat( match[1] ), context );
 				} else ( match[2] ) {
-					alert('name')
 					this.merge(Seasy('*', context).filter(match[2]));								
 					this.selector = selector;
 					this.context = context;
@@ -404,11 +420,11 @@ function getFileExtension(value) {
 }
 
 
-// alert(Seasy('*').filter('*com:composition').length);
 
-alert(Seasy('*', Seasy(1)[0]).filter(':mp3').length)
 
-// alert(getFileExtension(app.project.item(1).layer(12)))
+console.log(Seasy('*').filter('*Comp{label=1}').length);
+
+
 
 
 
