@@ -6,8 +6,8 @@ var pRoot = app.project,
 		qRExpr = /^(?:#(\d+)|(\^?\*?[^#@:>\{\}]+))$/,
 		regExpr = {
 			id: /^(#\d+)(.*)/,
-			name: /^(\^)?(\*)?([^:#@$>\{\}]+)(.*)/,
-			type: /:\s*(\w+)(.*)/,
+			name: /^(\^|\*)?\s*(\^|\*)?([^:#@$>\{\}]+)(.*)/,
+			type: /:\s*(\^)?\s*(\w+)(.*)/,
 			elementType: /(composition|comp|folder|footage|text|solid|light|camera|nullLayer|shape|adjustment|video|audio)/,
 			fileType: /(psd|ai|mov|png|jpg|exr|c4d|mp3|wav|tga|mpeg|mpg|mp4|eps|obj|pdf|avi|bmp|tif|raw|dpx|img|flv|ma|m2t|sxr|mxr|3gp|hdr|rla|rpf|wmv|wma)/,
 			attr: /\{\s*(\^*)\s*(\w+)\s*=*\s*(\w*)\s*\}/
@@ -65,13 +65,14 @@ Seasy.fn = Seasy.prototype = {
   },
 
   filter: function(selector) {
+  	if (selector == '') { return this; }
   	var tempArr = [],
   			match,
   			method,
   			sel=[];
 
 		var filter = {
-				'id': function(obj, sel) {
+				id: function(obj, sel) {
 								if (isLayer(obj)) {
 									return obj.index == parseFloat(sel[0]) ? true : false;
 								}
@@ -79,20 +80,20 @@ Seasy.fn = Seasy.prototype = {
 									return obj == pRoot.item(parseFloat(sel[0])) ? true : false;
 								}
 							},
-				'name': function(obj, sel) {
+				name: function(obj, sel) {
 									var fixed = !((sel[1]=='*') || (sel[2] == '*') || false),
 										not = (sel[1]=='^') || (sel[2] == '^') || false,
 										boole = false;
 
 									if (!fixed) {
-										boole = (obj.name.indexOf(sel[0]) >= 0) || false;
+										boole = (obj.name.indexOf(sel[0].trim()) >= 0) || false;
 									} else {
 										boole = obj.name == sel[0]; 
 									}
 									return not ? !boole : boole;
 								},
 
-				'type': function(obj, sel) {
+				type: function(obj, sel) {
 									var elementType = {
 												composition: isComp,
 												comp: isComp,
@@ -108,19 +109,22 @@ Seasy.fn = Seasy.prototype = {
 												video: isVideo,
 												audio: isAudio
 											},
-											matchType;
+											matchType,
+											boole,
+											not = (sel[1]=='^') || false;
 
 									if (matchType = sel[0].match(regExpr['elementType'])) {
-										return elementType[matchType[1]](obj);
+										boole = elementType[matchType[1]](obj);
 									}
 
 									if (matchType = sel[0].match(regExpr['fileType'])) {
-										return getFileExtension(obj) === matchType[1];
+										boole = getFileExtension(obj) === matchType[1];
 									}
 							
-									return false;
+									return not ? !boole : boole;;
 								},
-				'attr': function(obj, sel) {
+
+				attr: function(obj, sel) {
 									var value;
 									if(sel[2] !== '') {
 										value = obj[sel[1]] == sel[2];
@@ -130,9 +134,9 @@ Seasy.fn = Seasy.prototype = {
 									return (sel[0] == '^') ? !value : value;
 								}
 		};
-  	
+
+  	// handle case when filter selector is id
   	if (match = selector.trim().match(regExpr['id'])) {
-  		// console.log('id');
   		if (match[2]==='') {
   			method = 'id';
   			sel[0] = match[1].slice(1);
@@ -141,8 +145,8 @@ Seasy.fn = Seasy.prototype = {
   		}
   	}
 
+  	// handle case when filter selector is by name
   	if (match = selector.trim().match(regExpr['name'])) {
-  		// console.log(selector);
   		if (match[4]==='') {
   			method = 'name';
   			sel[0] = match[3];
@@ -153,17 +157,19 @@ Seasy.fn = Seasy.prototype = {
   		}
   	}
 
+  	// handle case when filter selector is by type
   	if (match = selector.trim().match(regExpr['type'])) {
-  		if (match[2]==='') {
+  		if (match[3]==='') {
   			method = 'type';
-  			sel[0] = match[1];
+  			sel[0] = match[2];
+  			sel[1] = match[1];
   		} else { 
-  			return this.filter(':' + match[1]).filter(match[2]);
+  			return this.filter(':' + match[2]).filter(match[3]);
   		}
   	}
 
+  	// handle case when filter selector is by attribute
   	if (match = selector.trim().match(regExpr['attr'])) {
-  		// console.log('attr');
   		if (match[2] !== '') {
   			method = 'attr';
   			sel[0] = match[1];
@@ -171,6 +177,8 @@ Seasy.fn = Seasy.prototype = {
   			sel[2] = match[3]
   		}
   	}
+
+  	if (typeof method === undefined) { return this; }
 
 		for(var i = 0; i < this.length; i++) {
 		
@@ -181,7 +189,23 @@ Seasy.fn = Seasy.prototype = {
   	return this.copy(tempArr);
   },
 
-}
+  even: function() {
+  	var tempArr = [];
+  	for(var i = 0; i < this.length; i = i + 2) {
+				tempArr.push(this[i]);
+		}
+  	return this.copy(tempArr);
+  },
+
+  odd: function() {
+  	var tempArr = [];
+  	for(var i = 1; i <= this.length; i = i + 2) {
+				tempArr.push(this[i]);
+		}
+  	return this.copy(tempArr);
+  },
+
+};
 
 var sInit = Seasy.prototype.sInit = function(selector, context) {
 	var key,
@@ -422,7 +446,7 @@ function getFileExtension(value) {
 
 
 
-console.log(Seasy('*').filter('*Comp{label=1}').length);
+console.log(Seasy('*', Seasy(2)[0]).odd()[4].name);
 
 
 
